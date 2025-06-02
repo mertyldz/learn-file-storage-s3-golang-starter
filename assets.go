@@ -49,3 +49,7 @@ func createRandomPath() (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
+
+func (cfg apiConfig) getObjectURL(key string) string {
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, key)
+}
