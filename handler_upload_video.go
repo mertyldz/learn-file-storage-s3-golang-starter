@@ -81,10 +81,12 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Error while creating mp4 key", err)
 		return
 	}
+	prefix := getVideoAspectType(tempMp4.Name())
+	mp4KeyWithPrefix := prefix + "/" + mp4Key
 	_, err = cfg.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket:      aws.String(cfg.s3Bucket),
 		Body:        tempMp4,
-		Key:         aws.String(mp4Key),
+		Key:         aws.String(mp4KeyWithPrefix),
 		ContentType: aws.String(mediaType),
 	})
 
@@ -93,7 +95,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	s3VideoUrl := cfg.getObjectURL(mp4Key)
+	s3VideoUrl := cfg.getObjectURL(mp4KeyWithPrefix)
 	videoDb.VideoURL = &s3VideoUrl
 	err = cfg.db.UpdateVideo(videoDb)
 	if err != nil {
