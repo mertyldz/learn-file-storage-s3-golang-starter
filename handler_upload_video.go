@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"mime"
@@ -75,6 +76,18 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	tempMp4.Seek(0, io.SeekStart)
+	processedMp4, err := processVideoForFastStart(tempMp4.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error while processing mp4", err)
+		return
+	}
+	defer os.Remove(processedMp4)
+	processedFile, err := os.ReadFile(processedMp4)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error while reading mp4", err)
+		return
+	}
+	processedReader := bytes.NewReader(processedFile)
 
 	mp4Key, err := createRandomPath()
 	if err != nil {
@@ -83,9 +96,10 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 	prefix := getVideoAspectType(tempMp4.Name())
 	mp4KeyWithPrefix := prefix + "/" + mp4Key
+
 	_, err = cfg.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket:      aws.String(cfg.s3Bucket),
-		Body:        tempMp4,
+		Body:        processedReader,
 		Key:         aws.String(mp4KeyWithPrefix),
 		ContentType: aws.String(mediaType),
 	})
