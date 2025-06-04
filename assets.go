@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -51,87 +48,4 @@ func createRandomPath() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
-}
-
-func (cfg apiConfig) getObjectURL(key string) string {
-	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, key)
-}
-
-func getVideoAspectRatio(filePath string) (string, error) {
-
-	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filePath)
-
-	output := struct {
-		Streams []struct {
-			SampleAspectRatio  string `json:"sample_aspect_ratio"`
-			DisplayAspectRatio string `json:"display_aspect_ratio"`
-			PixFmt             string `json:"pix_fmt"`
-			Level              int    `json:"level"`
-			ColorRange         string `json:"color_range"`
-			ColorSpace         string `json:"color_space"`
-			Refs               int    `json:"refs"`
-			RFrameRate         string `json:"r_frame_rate"`
-			AvgFrameRate       string `json:"avg_frame_rate"`
-			TimeBase           string `json:"time_base"`
-			Disposition        struct {
-				Default         int `json:"default"`
-				Dub             int `json:"dub"`
-				Original        int `json:"original"`
-				Comment         int `json:"comment"`
-				Lyrics          int `json:"lyrics"`
-				Karaoke         int `json:"karaoke"`
-				Forced          int `json:"forced"`
-				HearingImpaired int `json:"hearing_impaired"`
-				VisualImpaired  int `json:"visual_impaired"`
-				CleanEffects    int `json:"clean_effects"`
-				AttachedPic     int `json:"attached_pic"`
-				TimedThumbnails int `json:"timed_thumbnails"`
-				NonDiegetic     int `json:"non_diegetic"`
-				Captions        int `json:"captions"`
-				Descriptions    int `json:"descriptions"`
-				Metadata        int `json:"metadata"`
-				Dependent       int `json:"dependent"`
-				StillImage      int `json:"still_image"`
-			} `json:"disposition"`
-		} `json:"streams"`
-	}{}
-
-	var buffer bytes.Buffer
-	cmd.Stdout = &buffer
-	_ = cmd.Run()
-
-	err := json.Unmarshal(buffer.Bytes(), &output)
-	if err != nil {
-		return "", err
-	}
-
-	return output.Streams[0].DisplayAspectRatio, nil
-
-}
-
-func getVideoAspectType(filePath string) string {
-	ratio, err := getVideoAspectRatio(filePath)
-	if err != nil {
-		return "other"
-	}
-
-	switch ratio {
-	case "16:9":
-		return "landscape"
-	case "9:16":
-		return "portrait"
-	default:
-		return "other"
-	}
-}
-
-func processVideoForFastStart(filePath string) (string, error) {
-	outputPath := filePath + ".processing"
-	cmd := exec.Command("ffmpeg", "-i", filePath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", outputPath)
-	err := cmd.Run()
-	if err != nil {
-		return "", err
-	}
-	return outputPath, nil
-
 }
